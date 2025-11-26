@@ -1,0 +1,992 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MH-Search with Logging</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { 
+      background: #f8fafc; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    
+    /* Header */
+    .header {
+      background: white;
+      padding: 16px 0;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      margin-bottom: 24px;
+    }
+    .brand { 
+      font-size: 20px; 
+      font-weight: 600; 
+      color: #111827;
+    }
+    .status-badge {
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      background: #10b981;
+      color: white;
+    }
+    .status-badge.loading {
+      background: #f59e0b;
+    }
+    .status-badge.error {
+      background: #ef4444;
+    }
+    
+    /* Search Container */
+    .search-container {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    .search-card {
+      background: white;
+      border-radius: 12px;
+      padding: 28px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 20px;
+      border: 1px solid #e5e7eb;
+    }
+    .search-input {
+      height: 52px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 10px;
+      padding: 0 18px;
+      font-size: 15px;
+      transition: all 0.15s;
+      background: white;
+    }
+    .search-input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      outline: none;
+    }
+    .filter-select {
+      height: 52px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 10px;
+      padding: 0 14px;
+      font-size: 15px;
+      transition: all 0.15s;
+      background: white;
+    }
+    .filter-select:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      outline: none;
+    }
+    .search-btn {
+      height: 52px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      color: white;
+      transition: all 0.15s;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    .search-btn:hover {
+      background: linear-gradient(135deg, #5568d3 0%, #6a4190 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+    
+    /* Tips Row */
+    .tips-row {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .tip-text {
+      color: #6b7280;
+      font-size: 13px;
+    }
+    .record-count {
+      color: #111827;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    /* Result Cards */
+    .result-card {
+      background: white;
+      border-radius: 10px;
+      padding: 22px 24px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+      transition: all 0.15s;
+      border: 1px solid #e5e7eb;
+    }
+    .result-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      border-color: #d1d5db;
+    }
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .result-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: #111827;
+      line-height: 1.4;
+      flex: 1;
+      padding-right: 16px;
+    }
+    .result-snippet {
+      color: #4b5563;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+    .highlight {
+      background: #fef08a;
+      padding: 1px 0;
+      font-weight: 500;
+    }
+    .source-badge {
+      background: #f3f4f6;
+      color: #1f2937;
+      padding: 5px 11px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .result-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .tag-badge {
+      background: #e5e7eb;
+      color: #4b5563;
+      padding: 4px 9px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-right: 5px;
+      display: inline-block;
+      font-weight: 500;
+    }
+    .details-btn {
+      padding: 7px 15px;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 500;
+      border: 2px solid transparent;
+      background: linear-gradient(white, white) padding-box,
+                  linear-gradient(135deg, #667eea 0%, #764ba2 100%) border-box;
+      color: #667eea;
+      transition: all 0.2s;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .details-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: -1;
+    }
+    .details-btn:hover::before {
+      opacity: 1;
+    }
+    .details-btn:hover {
+      color: white;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    .source-btn {
+      padding: 7px 15px;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 500;
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      border: none;
+      color: white;
+      text-decoration: none;
+      display: inline-block;
+      transition: all 0.15s;
+      margin-left: 8px;
+      box-shadow: 0 3px 10px rgba(79, 172, 254, 0.3);
+    }
+    .source-btn:hover {
+      background: linear-gradient(135deg, #3d96e8 0%, #00d8e8 100%);
+      color: white;
+      transform: translateY(-1px);
+      box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+    }
+    
+    /* Logs Button */
+    .logs-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 11px 20px;
+      background: #1f2937;
+      color: white;
+      border: none;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      cursor: pointer;
+      transition: all 0.15s;
+      z-index: 999;
+    }
+    .logs-btn:hover {
+      background: #111827;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+    }
+    
+    /* Log Panel */
+    .log-panel {
+      position: fixed;
+      bottom: 0;
+      right: 0;
+      width: 420px;
+      max-height: 320px;
+      background: #1f2937;
+      color: #e5e7eb;
+      border-top-left-radius: 10px;
+      box-shadow: -4px -4px 20px rgba(0,0,0,0.25);
+      font-family: 'SF Mono', 'Monaco', 'Menlo', 'Courier New', monospace;
+      font-size: 12px;
+      z-index: 1000;
+      display: none;
+      overflow: hidden;
+    }
+    .log-panel.show { display: flex; flex-direction: column; }
+    .log-header {
+      background: #111827;
+      padding: 11px 14px;
+      border-bottom: 1px solid #374151;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .log-header-title {
+      font-weight: 600;
+      font-size: 12px;
+      letter-spacing: 0.3px;
+    }
+    .log-content {
+      padding: 10px 12px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .log-entry {
+      margin-bottom: 6px;
+      padding: 5px 7px;
+      border-left: 3px solid transparent;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.02);
+    }
+    .log-entry.info { border-left-color: #10b981; }
+    .log-entry.warn { border-left-color: #f59e0b; }
+    .log-entry.error { border-left-color: #ef4444; }
+    .log-entry.debug { border-left-color: #3b82f6; }
+    .log-time { color: #9ca3af; font-size: 10px; }
+    .log-level { font-weight: 700; margin: 0 6px; font-size: 11px; }
+    .log-message { color: #e5e7eb; font-size: 11px; }
+    .log-data { 
+      color: #93c5fd; 
+      font-size: 10px; 
+      margin: 3px 0 0 14px;
+      background: rgba(0,0,0,0.25);
+      padding: 4px 6px;
+      border-radius: 3px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .log-btn {
+      background: transparent;
+      border: 1px solid #4b5563;
+      color: #e5e7eb;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-left: 6px;
+      font-weight: 500;
+    }
+    .log-btn:hover {
+      background: #374151;
+      border-color: #6b7280;
+    }
+    
+    /* Modal */
+    .modal-content {
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+    }
+    .modal-header {
+      border-bottom: 1px solid #e5e7eb;
+      padding: 18px 22px;
+      background: #f9fafb;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #111827;
+    }
+    .modal-body {
+      padding: 22px;
+      line-height: 1.6;
+      color: #374151;
+      font-size: 14px;
+    }
+    .modal-footer {
+      border-top: 1px solid #e5e7eb;
+      padding: 14px 20px;
+      background: #f9fafb;
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 50px 20px;
+      color: #9ca3af;
+    }
+    .empty-state-icon {
+      font-size: 42px;
+      margin-bottom: 12px;
+    }
+
+    /* Scrollbar */
+    .log-content::-webkit-scrollbar {
+      width: 6px;
+    }
+    .log-content::-webkit-scrollbar-track {
+      background: #1f2937;
+    }
+    .log-content::-webkit-scrollbar-thumb {
+      background: #4b5563;
+      border-radius: 3px;
+    }
+    .log-content::-webkit-scrollbar-thumb:hover {
+      background: #6b7280;
+    }
+
+    /* Pagination */
+    .pagination-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 32px;
+      gap: 12px;
+    }
+    .pagination-info {
+      color: #6b7280;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .pagination-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .page-btn {
+      padding: 8px 14px;
+      border-radius: 7px;
+      border: 1px solid #d1d5db;
+      background: white;
+      color: #374151;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .page-btn:hover:not(:disabled) {
+      background: #f9fafb;
+      border-color: #9ca3af;
+    }
+    .page-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .page-btn.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-color: transparent;
+    }
+    .page-number {
+      padding: 8px 12px;
+      border-radius: 7px;
+      border: 1px solid #d1d5db;
+      background: white;
+      color: #374151;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      min-width: 40px;
+      text-align: center;
+    }
+    .page-number:hover {
+      background: #f9fafb;
+      border-color: #9ca3af;
+    }
+    .page-number.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-color: transparent;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="container-fluid">
+      <div class="d-flex justify-content-between align-items-center px-4">
+        <div class="brand">MH-Search with Logging</div>
+        <span id="dataStatus" class="status-badge loading">Loading...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="search-container">
+    <!-- Search Card -->
+    <div class="search-card">
+      <div class="row g-3 align-items-center">
+        <div class="col-md-7">
+          <input 
+            id="query" 
+            class="form-control search-input" 
+            placeholder="Search mental health topics, services, reports..." 
+            aria-label="Search"
+          />
+        </div>
+        <div class="col-md-3">
+          <select id="filterType" class="form-select filter-select">
+            <option value="all">All sources</option>
+            <option value="NHS">NHS</option>
+            <option value="Research">Research</option>
+            <option value="News">News</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button id="searchBtn" class="btn search-btn w-100">Search</button>
+        </div>
+      </div>
+      
+      <div class="tips-row d-flex justify-content-between align-items-center">
+        <div class="tip-text">
+          Tips: use short queries ("depression", "anxiety services")
+        </div>
+        <div class="record-count">
+          Records: <span id="recordCount">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Area -->
+    <div id="resultsArea"></div>
+
+    <!-- Pagination -->
+    <div id="paginationContainer" class="pagination-container" style="display: none;">
+      <button id="prevBtn" class="page-btn" onclick="goToPreviousPage()">← Previous</button>
+      <div id="pageNumbers" class="pagination-controls"></div>
+      <button id="nextBtn" class="page-btn" onclick="goToNextPage()">Next →</button>
+    </div>
+  </div>
+
+  <!-- Logs Button -->
+  <button class="logs-btn" onclick="toggleLogPanel()">
+    📊 Logs
+  </button>
+
+  <!-- Log Panel -->
+  <div id="logPanel" class="log-panel">
+    <div class="log-header">
+      <span class="log-header-title">Activity Logs</span>
+      <div>
+        <button class="log-btn" onclick="clearLogs()">Clear</button>
+        <button class="log-btn" onclick="toggleLogPanel()">✕</button>
+      </div>
+    </div>
+    <div class="log-content" id="logContent"></div>
+  </div>
+
+  <!-- Details Modal -->
+  <div class="modal fade" id="docModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 id="modalTitle" class="modal-title"></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p id="modalBody"></p>
+          <div class="mt-3" id="modalMeta" style="color: #6b7280; font-size: 13px;"></div>
+        </div>
+        <div class="modal-footer">
+          <a id="modalLink" class="source-btn" target="_blank">Open source</a>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // ========== LOGGING SYSTEM ==========
+    class Logger {
+      constructor() {
+        this.logs = [];
+        this.maxLogs = 100;
+      }
+
+      log(level, message, data = {}) {
+        const logEntry = {
+          timestamp: new Date().toISOString(),
+          level: level.toUpperCase(),
+          message,
+          data
+        };
+
+        this.logs.push(logEntry);
+        if (this.logs.length > this.maxLogs) {
+          this.logs.shift();
+        }
+
+        const consoleMethod = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
+        console[consoleMethod](`[${level.toUpperCase()}] ${message}`, data);
+
+        this.renderLog(logEntry);
+      }
+
+      renderLog(entry) {
+        const logContent = document.getElementById('logContent');
+        const logDiv = document.createElement('div');
+        logDiv.className = `log-entry ${entry.level.toLowerCase()}`;
+        
+        const time = new Date(entry.timestamp).toLocaleTimeString();
+        const dataStr = Object.keys(entry.data).length > 0 
+          ? `\n${JSON.stringify(entry.data, null, 2)}` 
+          : '';
+        
+        logDiv.innerHTML = `
+          <span class="log-time">${time}</span>
+          <span class="log-level">[${entry.level}]</span>
+          <span class="log-message">${entry.message}</span>
+          ${dataStr ? `<pre class="log-data">${dataStr}</pre>` : ''}
+        `;
+        
+        logContent.appendChild(logDiv);
+        logContent.scrollTop = logContent.scrollHeight;
+      }
+
+      info(message, data) { this.log('info', message, data); }
+      warn(message, data) { this.log('warn', message, data); }
+      error(message, data) { this.log('error', message, data); }
+      debug(message, data) { this.log('debug', message, data); }
+
+      clear() {
+        this.logs = [];
+        document.getElementById('logContent').innerHTML = '';
+      }
+    }
+
+    const logger = new Logger();
+
+    // ========== APPLICATION CODE ==========
+    let documents = [];
+    const index = { docs: {}, vocab: {} };
+    let currentPage = 1;
+    let currentResults = [];
+    const ITEMS_PER_PAGE = 10;
+
+    function transformData(jsonData) {
+      logger.info('Transforming data from JSON format', { recordCount: jsonData.results.length });
+      
+      return jsonData.results.map((item, idx) => ({
+        id: idx + 1,
+        title: item.title,
+        source: item.category || 'NHS',
+        type: item.category || 'NHS',
+        date: jsonData.query_info.timestamp.split(' ')[0],
+        url: item.url,
+        tags: extractTags(item.title, item.summary),
+        content: item.summary
+      }));
+    }
+
+    function extractTags(title, summary) {
+      const text = (title + ' ' + summary).toLowerCase();
+      const tags = [];
+      
+      if (text.includes('therapy') || text.includes('therapies')) tags.push('therapy');
+      if (text.includes('mental health')) tags.push('mental-health');
+      if (text.includes('nhs')) tags.push('nhs');
+      if (text.includes('data') || text.includes('statistics')) tags.push('data');
+      if (text.includes('quality')) tags.push('quality');
+      
+      return tags.slice(0, 3);
+    }
+
+    function tokenize(text) {
+      return text.toLowerCase().match(/[a-z0-9]+/g) || [];
+    }
+
+    function buildIndex() {
+      const startTime = performance.now();
+      logger.info('Building search index', { documentCount: documents.length });
+      
+      documents.forEach(doc => {
+        const txt = (doc.title + ' ' + doc.content + ' ' + (doc.tags||[]).join(' '));
+        const tokens = tokenize(txt);
+        const freq = {};
+        tokens.forEach(t => freq[t] = (freq[t]||0) + 1);
+        index.docs[doc.id] = { doc, freq, len: tokens.length };
+        Object.keys(freq).forEach(t => {
+          index.vocab[t] = (index.vocab[t] || 0) + 1;
+        });
+      });
+      
+      const duration = (performance.now() - startTime).toFixed(2);
+      logger.info('Index built successfully', { 
+        duration: `${duration}ms`,
+        vocabularySize: Object.keys(index.vocab).length 
+      });
+    }
+
+    function scoreDoc(queryTokens, docEntry) {
+      let score = 0;
+      queryTokens.forEach(q => {
+        const tf = (docEntry.freq[q] || 0) / docEntry.len;
+        const df = index.vocab[q] || 0;
+        const idf = df ? Math.log((Object.keys(index.docs).length + 1) / (df + 1)) : 0;
+        score += tf * idf * 100;
+      });
+      
+      const titleTokens = tokenize(docEntry.doc.title);
+      queryTokens.forEach(q => { 
+        if(titleTokens.includes(q)) score += 20; 
+      });
+      
+      return score;
+    }
+
+    function highlight(text, tokens) {
+      let out = text;
+      tokens.slice(0,8).forEach(t => {
+        const re = new RegExp('('+t+')','ig');
+        out = out.replace(re, '<span class="highlight">$1</span>');
+      });
+      return out;
+    }
+
+    function performSearch() {
+      const startTime = performance.now();
+      const raw = document.getElementById('query').value.trim();
+      const filter = document.getElementById('filterType').value;
+      
+      logger.info('Search initiated', { query: raw, filter });
+      
+      if(!raw) { 
+        showAll(); 
+        return; 
+      }
+      
+      const qTokens = tokenize(raw);
+      const results = [];
+      
+      Object.values(index.docs).forEach(entry => {
+        if(filter !== 'all' && entry.doc.type !== filter) return;
+        const s = scoreDoc(qTokens, entry);
+        if(s > 0) results.push({score: s, doc: entry.doc});
+      });
+      
+      results.sort((a,b)=>b.score-a.score);
+      
+      const duration = (performance.now() - startTime).toFixed(2);
+      logger.info('Search completed', { 
+        query: raw,
+        resultCount: results.length,
+        duration: `${duration}ms`
+      });
+      
+      currentResults = results;
+      currentPage = 1;
+      renderResults(results, qTokens);
+      renderPagination(results.length);
+    }
+
+    function showAll() {
+      logger.debug('Showing all documents');
+      const all = Object.values(index.docs).map(e=>({score:0, doc:e.doc}));
+      currentResults = all;
+      currentPage = 1;
+      renderResults(all, []);
+      renderPagination(all.length);
+    }
+
+    function renderResults(results, qTokens) {
+      const area = document.getElementById('resultsArea');
+      if(results.length === 0){
+        area.innerHTML = `
+          <div class="result-card">
+            <div class="empty-state">
+              <div class="empty-state-icon">🔍</div>
+              <div>No results found. Try different keywords.</div>
+            </div>
+          </div>
+        `;
+        document.getElementById('paginationContainer').style.display = 'none';
+        return;
+      }
+      
+      // Calculate pagination
+      const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+      const endIdx = startIdx + ITEMS_PER_PAGE;
+      const paginatedResults = results.slice(startIdx, endIdx);
+      
+      let html = '';
+      paginatedResults.forEach(r=>{
+        const d = r.doc;
+        const snippet = d.content.length>220 ? d.content.slice(0,220)+'...' : d.content;
+        const highlightedSnippet = qTokens.length ? highlight(snippet, qTokens) : snippet;
+        html += `
+          <div class="result-card">
+            <div class="result-header">
+              <div class="result-title">${d.title}</div>
+              <span class="source-badge">${d.source}</span>
+            </div>
+            <div class="result-snippet">${highlightedSnippet}</div>
+            <div class="result-footer">
+              <div>
+                ${d.tags.map(t=>`<span class="tag-badge">${t}</span>`).join('')}
+              </div>
+              <div>
+                <button class="details-btn" onclick="openModal(${d.id})">Details</button>
+                <a class="source-btn" href="${d.url}" target="_blank">Source</a>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      area.innerHTML = html;
+      
+      // Scroll to top of results
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderPagination(totalResults) {
+      const totalPages = Math.ceil(totalResults / ITEMS_PER_PAGE);
+      const paginationContainer = document.getElementById('paginationContainer');
+      const pageNumbers = document.getElementById('pageNumbers');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      
+      if (totalPages <= 1) {
+        paginationContainer.style.display = 'none';
+        return;
+      }
+      
+      paginationContainer.style.display = 'flex';
+      
+      // Update prev/next buttons
+      prevBtn.disabled = currentPage === 1;
+      nextBtn.disabled = currentPage === totalPages;
+      
+      // Generate page numbers
+      let pagesHTML = '';
+      const maxPagesToShow = 5;
+      let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+      let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+      
+      if (endPage - startPage < maxPagesToShow - 1) {
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
+      }
+      
+      // First page
+      if (startPage > 1) {
+        pagesHTML += `<span class="page-number" onclick="goToPage(1)">1</span>`;
+        if (startPage > 2) {
+          pagesHTML += `<span class="page-number" style="border: none; cursor: default;">...</span>`;
+        }
+      }
+      
+      // Page numbers
+      for (let i = startPage; i <= endPage; i++) {
+        pagesHTML += `<span class="page-number ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</span>`;
+      }
+      
+      // Last page
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+          pagesHTML += `<span class="page-number" style="border: none; cursor: default;">...</span>`;
+        }
+        pagesHTML += `<span class="page-number" onclick="goToPage(${totalPages})">${totalPages}</span>`;
+      }
+      
+      pageNumbers.innerHTML = pagesHTML;
+      
+      logger.debug('Pagination rendered', { 
+        currentPage, 
+        totalPages, 
+        showing: `${(currentPage - 1) * ITEMS_PER_PAGE + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, totalResults)}`,
+        total: totalResults
+      });
+    }
+
+    function goToPage(page) {
+      const totalPages = Math.ceil(currentResults.length / ITEMS_PER_PAGE);
+      if (page < 1 || page > totalPages) return;
+      
+      currentPage = page;
+      const query = document.getElementById('query').value.trim();
+      const qTokens = query ? tokenize(query) : [];
+      
+      renderResults(currentResults, qTokens);
+      renderPagination(currentResults.length);
+      
+      logger.info('Page changed', { page, totalResults: currentResults.length });
+    }
+
+    function goToPreviousPage() {
+      if (currentPage > 1) {
+        goToPage(currentPage - 1);
+      }
+    }
+
+    function goToNextPage() {
+      const totalPages = Math.ceil(currentResults.length / ITEMS_PER_PAGE);
+      if (currentPage < totalPages) {
+        goToPage(currentPage + 1);
+      }
+    }
+
+    function openModal(id) {
+      const entry = documents.find(d=>d.id===id);
+      if(!entry) return;
+      
+      logger.info('Document opened', { documentId: id, title: entry.title });
+      
+      document.getElementById('modalTitle').innerText = entry.title;
+      document.getElementById('modalBody').innerHTML = entry.content;
+      document.getElementById('modalMeta').innerHTML = `Source: ${entry.source} • Tags: ${entry.tags.join(', ')}`;
+      const link = document.getElementById('modalLink');
+      link.href = entry.url;
+      const modal = new bootstrap.Modal(document.getElementById('docModal'));
+      modal.show();
+    }
+
+    document.getElementById('searchBtn').addEventListener('click', performSearch);
+    document.getElementById('query').addEventListener('keydown', (e) => { 
+      if(e.key === 'Enter') performSearch(); 
+    });
+    document.getElementById('filterType').addEventListener('change', (e) => {
+      logger.debug('Filter changed', { newFilter: e.target.value });
+    });
+
+    function toggleLogPanel() {
+      const panel = document.getElementById('logPanel');
+      panel.classList.toggle('show');
+    }
+
+    function clearLogs() {
+      logger.clear();
+      logger.info('Logs cleared');
+    }
+
+    async function init() {
+      logger.info('Application starting');
+      const statusEl = document.getElementById('dataStatus');
+      statusEl.textContent = 'Loading...';
+      statusEl.className = 'status-badge loading';
+      
+      try {
+        let jsonData;
+        
+        try {
+          logger.info('Attempting to fetch dataset.json');
+          const response = await fetch('dataset.json');
+          
+          if (response.ok) {
+            jsonData = await response.json();
+            logger.info('Successfully loaded dataset.json', { 
+              totalResults: jsonData.query_info?.total_results,
+              actualRecords: jsonData.results?.length 
+            });
+          } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+        } catch (fetchError) {
+          logger.warn('Could not fetch dataset.json, using fallback data', { 
+            error: fetchError.message 
+          });
+          
+          jsonData = {
+            "query_info": {"total_results": 2, "timestamp": "2025-11-23 13:06:22"},
+            "results": [
+              {
+                "title": "NHS Talking Therapies Data Quality Submission Summary Tool",
+                "url": "https://digital.nhs.uk/data-and-information/data-collections-and-data-sets/data-sets/improving-access-to-psychological-therapies-data-set/validation-summary-generator",
+                "summary": "The NHS Talking Therapies for anxiety and depression Data Quality Submission Summary Tool is designed to improve readability and understanding of the summary reports made available following a data submission on the SDCS Cloud portal.",
+                "category": "NHS",
+                "page": 1
+              },
+              {
+                "title": "Quality and Outcomes Framework",
+                "url": "https://digital.nhs.uk/data-and-information/publications/statistical/quality-and-outcomes-framework-achievement-prevalence-and-exceptions-data",
+                "summary": "Contains indicators calculated for GP practices in key areas of clinical care and public health. Includes recorded disease prevalence, achievement rates and personalised care adjustment data.",
+                "category": "NHS",
+                "page": 1
+              }
+            ]
+          };
+        }
+        
+        documents = transformData(jsonData);
+        buildIndex();
+        showAll();
+        
+        document.getElementById('recordCount').textContent = documents.length;
+        statusEl.textContent = `${documents.length} records loaded`;
+        statusEl.className = 'status-badge';
+        
+        logger.info('Application initialized successfully', { 
+          totalRecords: documents.length 
+        });
+        
+      } catch(e) {
+        logger.error('Failed to initialize application', { 
+          error: e.message,
+          stack: e.stack 
+        });
+        const statusEl = document.getElementById('dataStatus');
+        statusEl.textContent = 'Error loading data';
+        statusEl.className = 'status-badge error';
+      }
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
